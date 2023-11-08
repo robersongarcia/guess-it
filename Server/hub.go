@@ -76,6 +76,18 @@ func getWords() []string {
 	return []string{"apple", "car", "laptop", "network"}
 }
 
+// Create a function that takes as arguments an integer called kind, a value of type any and that creates a json and unmarshal it and returns it
+func createJson(kind int, value any) ([]byte, error) {
+	var msgJson = make(map[string]interface{})
+	msgJson["kind"] = kind
+	msgJson["data"] = value
+	msg, err := json.Marshal(msgJson)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return msg, err
+}
+
 var h = hub{
 	broadcast:  make(chan message),
 	private:    make(chan privateMessage),
@@ -164,7 +176,13 @@ func (h *hub) run() {
 				go gameLoop(s.room)
 			}
 			h.rooms[s.room][s.conn] = player{id: s.userId, name: s.userName, roundScore: make([]int, 0), roundGuess: make([]bool, 0), paintRounds: 0, isPainter: false, isOwner: isOwner}
-			joinMessage := message{[]byte(s.userName + " joined"), s.room, MESSAGE_TYPE_USER_JOIN, s.userId, s.userName, s.conn}
+			// create join message
+			var msg, err = createJson(MESSAGE_TYPE_USER_JOIN, s.userName+" joined the game")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			joinMessage := message{msg, s.room, MESSAGE_TYPE_USER_JOIN, s.userId, s.userName, s.conn}
 			h.games[s.room].message <- joinMessage
 
 		case s := <-h.unregister:
