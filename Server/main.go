@@ -46,7 +46,7 @@ func ginserver() {
 		c.JSON(200, roomsList)
 	})
 
-	r.Use(static.Serve("/", static.LocalFile("./client/dist", true)))
+	r.Use(static.Serve("/", static.LocalFile("../Client/dist", true)))
 
 	r.Run(":8081")
 }
