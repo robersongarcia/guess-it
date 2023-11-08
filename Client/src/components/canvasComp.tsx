@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import './canvas.css';
 import { Button } from '@/components/ui/button';
+import { MessageKind } from "@/constants";
 
 interface MenuProps {
     setLineColor: (color: string) => void;
@@ -42,30 +43,46 @@ const Menu: React.FC<MenuProps> = ({ setLineColor, setLineWidth, clearCanvas }) 
         </div> 
     ); 
 }; 
+
+export interface Point {
+    x: number;
+    y: number;
+    lineWidth?: number;
+    lineColor?: string;
+}
     
-function CanvasPaint() { 
+interface CanvasProps {
+    send: (message: string) => void;
+    otherStrokes: Point[][];
+    clearFlag: boolean;
+    isPainter: boolean;
+}
+
+function CanvasPaint({send, otherStrokes, clearFlag, isPainter}:CanvasProps) { 
     const canvasRef = useRef<HTMLCanvasElement | null>(null); 
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null); 
     const [isDrawing, setIsDrawing] = useState(false); 
     const [lineWidth, setLineWidth] = useState(5); 
-    const [lineColor, setLineColor] = useState("black"); 
-    
-        useEffect(() => {
-            const canvas = document.querySelector('canvas');
-            if (canvas !== null) {
-                fitToContainer(canvas);
-            }
-            
-            function fitToContainer(canvas: HTMLCanvasElement) {
-                // Make it visually fill the positioned parent
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                // ...then set the internal size to match
-                canvas.width = canvas.offsetWidth;
-                canvas.height = canvas.offsetHeight;
-            }
-    
-        }, [])
+    const [lineColor, setLineColor] = useState("#000000"); 
+    const [strokes, setStrokes] = useState<Point[][]>([]);
+
+    // Resize canvas to fit the screen
+    useEffect(() => {
+        const canvas = document.querySelector('canvas');
+        if (canvas !== null) {
+            fitToContainer(canvas);
+        }
+        
+        function fitToContainer(canvas: HTMLCanvasElement) {
+            // Make it visually fill the positioned parent
+            canvas.style.width = '100%';
+            canvas.style.height = '100%';
+            // ...then set the internal size to match
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+
+    }, [])
   
     // Initialization when the component 
     // mounts for the first time 
@@ -82,14 +99,66 @@ function CanvasPaint() {
             }
         }
     }, [lineColor, lineWidth]); 
+
+    useEffect(() => {
+        update(otherStrokes);
+    }, [otherStrokes])
+
+    useEffect(() => {
+        if (clearFlag) {
+            clearCanvas(true);            
+        }
+    }, [clearFlag])
   
-    // Function for starting the drawing 
-    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => { 
+    function drawStrokes(strokes: Point[][], ctx: CanvasRenderingContext2D) {
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        for (let i = 0; i < strokes.length; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = strokes[i][0].lineColor || lineColor;
+            ctx.lineWidth = strokes[i][0].lineWidth || lineWidth;
+            ctx.moveTo(strokes[i][0].x, strokes[i][0].y);
+            for (let j = 1; j < strokes[i].length; j++) {
+                const current = strokes[i][j];
+                ctx.lineTo(current.x, current.y);
+            }
+            ctx.stroke();
+        }
+    }
+
+    function update(strokes: Point[][]) {
         const ctx = ctxRef.current;
         if (ctx) {
-            ctx.beginPath(); 
-            ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); 
+            drawStrokes(strokes, ctx);
+        }
+    }
+
+
+    function addPoint(x: number, y: number, lineWidth: number, lineColor: string, newStroke: boolean = false) {
+        const p = { x: x, y: y, lineWidth: lineWidth, lineColor: lineColor };
+        if (newStroke) {
+            setStrokes([...strokes, [p]]);
+        } else {
+            setStrokes(strokes.slice(0, strokes.length - 1).concat([strokes[strokes.length - 1].concat([p])]));
+        }
+        send(JSON.stringify({
+            kind: MessageKind.MESSAGE_TYPE_DRAW,
+            data: {
+                points: [p],
+                finish: newStroke
+            }
+        }));
+    }
+
+
+    const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => { 
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext("2d");
+            if(ctx) {
+            const rect = canvas.getBoundingClientRect();
+            addPoint(e.clientX - rect.left, e.clientY - rect.top, ctx.lineWidth, ctx.strokeStyle.toString() ,true);
             setIsDrawing(true); 
+            }
         }
     }; 
   
@@ -106,14 +175,19 @@ function CanvasPaint() {
         if (!isDrawing) { 
             return; 
         } 
-        const ctx = ctxRef.current;
-        if (ctx) {
-            ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY); 
-            ctx.stroke(); 
+        const canvas = canvasRef.current;
+        if (canvas) {
+            const ctx = canvas.getContext("2d");
+            if (!ctx) {
+                return;
+            }            
+            const rect = canvas.getBoundingClientRect();
+            addPoint(e.clientX - rect.left, e.clientY - rect.top, ctx.lineWidth, ctx.strokeStyle.toString());
+            update(strokes);
         }
     };
     
-    const clearCanvas = () => {
+    const clearCanvas = (full: boolean = false) => {
         const canvas = canvasRef.current;
         if (canvas) {
             const ctx = canvas.getContext("2d");
@@ -121,24 +195,46 @@ function CanvasPaint() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
             }
         }
+
+        if (full) {
+            setStrokes([]);
+            send(JSON.stringify({ kind: MessageKind.MESSAGE_TYPE_CLEAR }));
+        }
     }
   
     return ( 
         <div className="h-full"> 
             <div className="h-full static"> 
-                <canvas 
-                    onMouseDown={startDrawing} 
-                    onMouseUp={endDrawing} 
-                    onMouseMove={draw} 
-                    ref={canvasRef} 
-                    width={`100%`} 
-                    height={`100%`} 
-                /> 
-                <Menu 
+                {
+                    isPainter ? (
+                    <canvas 
+                        onMouseDown={startDrawing} 
+                        onMouseUp={endDrawing} 
+                        onMouseMove={draw} 
+                        ref={canvasRef} 
+                        width={`100%`} 
+                        height={`100%`} 
+                    /> 
+                    ):
+                    (
+                    <canvas          
+                        ref={canvasRef} 
+                        width={`100%`} 
+                        height={`100%`} 
+                    />    
+                    )                    
+                }
+                
+                {
+                    isPainter && (
+                    <Menu 
                     setLineColor={setLineColor} 
                     setLineWidth={setLineWidth}
                     clearCanvas={clearCanvas}
-                /> 
+                    /> 
+                    )
+                }
+                
             </div> 
         </div> 
     ); 

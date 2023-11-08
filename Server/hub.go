@@ -62,6 +62,9 @@ type hub struct {
 	// Inbound messages from the connections.
 	broadcast chan message
 
+	// Broadcast for all users except sender
+	albroadcast chan message
+
 	// Inbound private messages from the connections.
 	private chan privateMessage
 
@@ -73,7 +76,7 @@ type hub struct {
 }
 
 func getWords() []string {
-	return []string{"apple", "car", "laptop", "network"}
+	return []string{"apple", "car", "laptop", "network", "pie", "architecture"}
 }
 
 // Create a function that takes as arguments an integer called kind, a value of type any and that creates a json and unmarshal it and returns it
@@ -89,12 +92,13 @@ func createJson(kind int, value any) ([]byte, error) {
 }
 
 var h = hub{
-	broadcast:  make(chan message),
-	private:    make(chan privateMessage),
-	register:   make(chan subscription),
-	unregister: make(chan subscription),
-	rooms:      make(map[string]map[*connection]player),
-	games:      make(map[string]game),
+	broadcast:   make(chan message),
+	albroadcast: make(chan message),
+	private:     make(chan privateMessage),
+	register:    make(chan subscription),
+	unregister:  make(chan subscription),
+	rooms:       make(map[string]map[*connection]player),
+	games:       make(map[string]game),
 }
 
 func gameLoop(room string) {
@@ -103,9 +107,6 @@ func gameLoop(room string) {
 	game := h.games[room]
 
 	isEnd := false
-
-	game.words = getWords()
-	game.rounds = 5
 
 	for {
 		m := <-game.message
@@ -127,9 +128,14 @@ func gameLoop(room string) {
 					playerAct.roundScore = append(playerAct.roundScore, 100)
 					playerAct.roundGuess = append(playerAct.roundGuess, true)
 					fmt.Println("gameLoop message chat message correct guess")
-
-					guessMessage := privateMessage{[]byte(playerAct.name + " guessed the word"), room, MESSAGE_TYPE_GUESS, "server", "server", m.senderConn, playerAct.id}
-					h.private <- guessMessage
+					// create correct guess message
+					var msg, err = createJson(MESSAGE_TYPE_GUESS, playerAct.name+" guessed the word")
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					guessMessage := message{msg, room, MESSAGE_TYPE_GUESS, "server", "server", m.senderConn}
+					h.broadcast <- guessMessage
 					continue
 				}
 				h.broadcast <- m
@@ -140,8 +146,25 @@ func gameLoop(room string) {
 
 		if m.kind == MESSAGE_TYPE_START_GAME {
 			fmt.Println("gameLoop message start game")
+			if game.isStarted {
+				continue
+			}
 			game.isStarted = true
-			game.round = 1
+
+			game.rounds = len(h.rooms[room]) * 2 // TODO change to 3 aqui van las rondas
+
+			game.words = getWords() // TODO change to get words from database
+
+			fmt.Println("gameLoop message start game rounds: ", game.rounds)
+
+			for _, player := range h.rooms[room] {
+				player.roundScore = make([]int, game.rounds)
+				player.roundGuess = make([]bool, game.rounds)
+				player.paintRounds = 0
+				player.isPainter = false
+			}
+
+			h.broadcast <- m
 		}
 
 		if m.kind == MESSAGE_TYPE_END_GAME {
@@ -151,8 +174,45 @@ func gameLoop(room string) {
 
 		if m.kind == MESSAGE_TYPE_USER_JOIN {
 			fmt.Print("gameLoop message user join: ")
+
+			playerAct := h.rooms[room][m.senderConn]
+
+			fmt.Println(playerAct.name)
+
+			if playerAct.isOwner {
+				var msg, err = createJson(MESSAGE_TYPE_IS_OWNER, playerAct.name+" is the owner")
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				priv := privateMessage{msg, m.room, MESSAGE_TYPE_IS_OWNER, m.senderId, m.senderName, m.senderConn, m.senderId}
+				fmt.Println(priv)
+				h.private <- priv
+				fmt.Println("gameLoop message user join owner")
+			}
+
 			h.broadcast <- m
 			fmt.Println("gameLoop message user join end")
+		}
+
+		if m.kind == MESSAGE_TYPE_DRAW {
+			fmt.Println("gameLoop message draw")
+			h.albroadcast <- m
+		}
+
+		if m.kind == MESSAGE_TYPE_CLEAR {
+			fmt.Println("gameLoop message clear")
+			h.albroadcast <- m
+		}
+
+		if m.kind == MESSAGE_TYPE_USER_LEAVE {
+			fmt.Println("gameLoop message user leave")
+			h.broadcast <- m
+		}
+
+		if m.kind == MESSAGE_TYPE_START_ROUND {
+
+			h.broadcast <- m
 		}
 
 		if isEnd {
@@ -189,6 +249,15 @@ func (h *hub) run() {
 			connections := h.rooms[s.room]
 			if connections != nil {
 				if _, ok := connections[s.conn]; ok {
+					// create leave message
+					var msg, err = createJson(MESSAGE_TYPE_USER_LEAVE, s.userName+" left the game")
+					if err != nil {
+						fmt.Println(err)
+						continue
+					}
+					leaveMessage := message{msg, s.room, MESSAGE_TYPE_USER_LEAVE, s.userId, s.userName, s.conn}
+					h.games[s.room].message <- leaveMessage
+
 					delete(connections, s.conn)
 					close(s.conn.send)
 					if len(connections) == 0 {
@@ -209,6 +278,23 @@ func (h *hub) run() {
 					if len(connections) == 0 {
 						delete(h.rooms, m.room)
 						delete(h.games, m.room)
+					}
+				}
+			}
+
+		case m := <-h.albroadcast:
+			connections := h.rooms[m.room]
+			for c := range connections {
+				if c != m.senderConn {
+					select {
+					case c.send <- m.data:
+					default:
+						close(c.send)
+						delete(connections, c)
+						if len(connections) == 0 {
+							delete(h.rooms, m.room)
+							delete(h.games, m.room)
+						}
 					}
 				}
 			}

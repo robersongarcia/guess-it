@@ -1,9 +1,12 @@
 import { Router } from "./Router"
+import { SnackbarProvider } from 'notistack'
 
 function App() {
 
   return (
-    <Router />
+    <SnackbarProvider>
+      <Router />
+    </SnackbarProvider>
   )
 }
 

@@ -6,7 +6,7 @@ export const Router = () => {
     <Routes>            
             <Route path="login" element={<LoginPage/>}/>
             <Route path="lobby" element={<LobbyPage/>}/>
-            <Route path="game/room/:roomId/user/:username" element={<GamePage/>}/>
+            <Route path="game/room/:roomId/user/:username/:userId" element={<GamePage/>}/>
 
             <Route path="/*" element={ <Navigate to="login" />}/>
 
