@@ -6,3 +6,9 @@
     background: linear-gradient(rgba(2,2,2,.7),rgba(0,0,0,.7)),url(https://images.unsplash.com/photo-1510832842230-87253f48d74f?auto=format&fit=crop&q=80&w=1974&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D) center center;
     background-size: cover;
 }
+
+.glow {
+    filter: drop-shadow(0 0 8px blue); /* Puedes ajustar el color y el tamaño del brillo */
+    transition: filter 0.2s ease-in-out; /* Añade una transición suave al cambio de filtro */
+  }
+
