@@ -1,25 +1,105 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 )
+
+func ginserver() {
+	r := gin.Default()
+
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Credentials", "true")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Origin, Content-Type, Accept")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
+		// if c.Request.Method == "OPTIONS" {
+		// 	c.AbortWithStatus(204) // No content
+		// 	return
+		// }
+
+		c.Next()
+	})
+
+	r.GET("/wslist", func(c *gin.Context) {
+		roomsList := make(map[string]int)
+		for roomId, room := range h.rooms {
+			counter := 0
+			for _, p := range room {
+				counter++
+				roomsList[roomId] = counter
+				fmt.Println(p)
+			}
+		}
+
+		// Access-Control-Allow-Origin : http://localhost:5173
+		// Access-Control-Allow-Credentials : true
+		// Access-Control-Allow-Methods : GET, POST, OPTIONS
+		// Access-Control-Allow-Headers : Origin, Content-Type, Accept
+
+		c.JSON(200, roomsList)
+	})
+
+	r.Use(static.Serve("/", static.LocalFile("../Client/dist", true)))
+
+	r.Run(":8081")
+}
 
 func main() {
 	go h.run()
 
-	router := gin.New()
-	router.LoadHTMLFiles("index.html")
-
-	router.GET("/room/:userName/:roomId", func(c *gin.Context) {
-		c.HTML(200, "index.html", nil)
+	http.HandleFunc("/room/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
 	})
 
-	router.GET("/ws/:roomId/:userId/:userName", func(c *gin.Context) {
-		roomId := c.Param("roomId")
-		userId := c.Param("userId")
-		userName := c.Param("userName")
-		serveWs(c.Writer, c.Request, roomId, userId, userName)
+	http.HandleFunc("/ws/", func(w http.ResponseWriter, r *http.Request) {
+		_, userName, userId, roomId := Split(r.URL.Path)
+		serveWs(w, r, roomId, userId, userName)
 	})
 
-	router.Run("0.0.0.0:8080")
+	// http.HandleFunc("/wsList/", func(w http.ResponseWriter, r *http.Request) {
+	// 	// return list of rooms and number of players
+	// 	fmt.Println("wsList")
+
+	// 	roomsList := make(map[string]int)
+	// 	for roomId, room := range h.rooms {
+	// 		counter := 0
+	// 		for _, p := range room {
+	// 			counter++
+	// 			roomsList[roomId] = counter
+	// 			fmt.Println(p)
+	// 		}
+	// 	}
+
+	// 	w.Header().Set("Content-Type", "application/json")
+	// 	//
+	// 	// json.NewEncoder(w).Encode(roomsList)
+
+	// 	sonMsg, err := json.Marshal(roomsList)
+
+	// 	if err != nil {
+	// 		fmt.Println(err)
+	// 		return
+	// 	}
+
+	// 	w.Write(sonMsg)
+
+	// 	fmt.Println("wsList end")
+
+	// })
+	go ginserver()
+
+	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
+
+}
+
+func Split(path string) (string, string, string, string) {
+	splitPath := strings.Split(path, "/")
+	return splitPath[1], splitPath[2], splitPath[3], splitPath[4]
 }

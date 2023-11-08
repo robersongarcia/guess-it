@@ -33,11 +33,19 @@ const (
 	MESSAGE_TYPE_USER_LEAVE
 	MESSAGE_TYPE_DRAW
 	MESSAGE_TYPE_GUESS
+	MESSAGE_TYPE_CLEAR
+	MESSAGE_TYPE_IS_OWNER
+	MESSAGE_TYPE_START_ROUND
+	MESSAGE_TYPE_IS_PAINTER
+	MESSAGE_TYPE_SAY_PAINTER
+	MESSAGE_TYPE_END_ROUND
+	MESSAGE_TYPE_WHO_GUESS
 )
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
+	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
 // connection is an middleman between the websocket connection and the hub.

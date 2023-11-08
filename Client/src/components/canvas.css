@@ -1,0 +1,15 @@
+
+  
+.Menu { 
+    position: absolute;
+    bottom: 0;
+    /* center with calc */
+    left: calc(16%);
+    height: 50px; 
+    display: flex; 
+    justify-content: space-evenly; 
+    border-radius: 5px; 
+    align-items: center;     
+    margin: auto; 
+    margin-top: 10px; 
+}
