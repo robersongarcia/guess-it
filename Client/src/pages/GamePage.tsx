@@ -43,6 +43,7 @@ export const GamePage = () => {
   const [isPainter, setIsPainter] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
+  const [isRoundStarted, setIsRoundStarted] = useState(false)
   const { enqueueSnackbar } = useSnackbar()
   const logRef = useRef<HTMLDivElement>(null)
   const [message, setMessage] = useState('')
@@ -52,8 +53,9 @@ export const GamePage = () => {
 
   const {roomId, username, userId} = useParams()
   const {isReady, val, send} = useWs(`ws://${SERVER}/ws/${username}/${userId}/${roomId}/`)
+  const [trueWord, setTrueWord] = useState('')
 
-  const [word, setWord] = useState(['a','p',' ','l','e'])
+  const [word, setWord] = useState(['','','','',''])
 
   useEffect(() => {
     if (isReady) {
@@ -153,6 +155,53 @@ export const GamePage = () => {
     enqueueSnackbar(`${data.data}`, {variant: 'error', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
   }
 
+  function sayPainterHandler(data: Message) {
+    const log = logRef.current
+    const item = document.createElement('div')
+    item.classList.add('flex')
+    item.innerHTML = `
+      <div class="bg-cyan-900 text-white p-2 rounded-lg max-w-xs">
+        ${data.data}
+      </div>
+    `          
+    appendLog(log!, item)
+
+    enqueueSnackbar(`${data.data}`, {variant: 'info', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+    setGameStarted(true)
+  }
+
+  function startRoundMessageHandler (message: string, word: string){ 
+    const log = logRef.current
+    const item = document.createElement('div')
+    item.classList.add('flex')
+    item.innerHTML = `
+      <div class="bg-cyan-900 text-white p-2 rounded-lg max-w-xs">
+        ${message}
+      </div>
+    `          
+    appendLog(log!, item)
+
+    enqueueSnackbar(`${message}`, {variant: 'info', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+
+    const str = word as string
+    setIsRoundStarted(true)
+
+    if( isPainter)
+      return
+    // add withe spaces to set word of the length of the string
+    setWord([])
+
+    new Array(str.length).fill(' ').forEach((letter) => {
+      setWord((prev) => {
+        const newWord = [...prev]
+        newWord.push(letter)
+        return newWord
+      })
+    })
+
+
+  } 
+
   useEffect(() => {
     function messageHandler() {
       if (!val) return
@@ -184,8 +233,20 @@ export const GamePage = () => {
 
           break
         case MessageKind.MESSAGE_TYPE_GUESS:
-          console.log('guess')
-          break
+          {
+            console.log('Type guess')
+            const log = logRef.current
+            const item = document.createElement('div')
+            item.classList.add('flex')
+            item.innerHTML = `
+              <div class="bg-lime-700 text-white p-2 rounded-lg max-w-xs">
+                ${data.data}
+              </div>
+            `
+            appendLog(log!, item)
+            enqueueSnackbar(`${data.data}`, {variant: 'success', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+            break
+          }
 
         case MessageKind.MESSAGE_TYPE_CLEAR:
           console.log('clear')
@@ -201,6 +262,69 @@ export const GamePage = () => {
           setIsOwner(true)
           break
 
+        case MessageKind.MESSAGE_TYPE_IS_PAINTER:
+        {          
+          console.log('is painter')
+          console.log(data)
+          setIsPainter(true)
+          const str = data.data as string
+          const arr = str.split('')          
+          setWord(arr)
+          enqueueSnackbar(`You are the painter`, {variant: 'info', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+          const log = logRef.current
+          const item = document.createElement('div')
+          item.classList.add('flex')
+          item.innerHTML = `
+            <div class="bg-cyan-900 text-white p-2 rounded-lg max-w-xs">
+              You are the painter
+            </div>
+          `          
+          appendLog(log!, item)
+        }
+          break
+
+        case MessageKind.MESSAGE_TYPE_START_ROUND:{
+        
+          console.log('start round')
+          console.log(data)
+          
+          const {message, word} = data.data
+          startRoundMessageHandler(message, word)
+          setTrueWord(word)
+          break
+        }
+        case MessageKind.MESSAGE_TYPE_SAY_PAINTER:
+          console.log('say painter')
+          sayPainterHandler(data)
+          break
+
+        case MessageKind.MESSAGE_TYPE_END_ROUND:
+          {
+            console.log('end round')
+            setIsRoundStarted(false)
+            setClearFlag(true)
+            setOtherStrokes([])
+            setIsPainter(false)
+            const log = logRef.current
+            const item = document.createElement('div')
+            item.classList.add('flex')
+            item.innerHTML = `
+              <div class="bg-cyan-900 text-white p-2 rounded-lg max-w-xs">
+                Round ended
+              </div>
+            `
+            appendLog(log!, item)
+            enqueueSnackbar(`Round ended`, {variant: 'info', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+          }
+          break
+
+        case MessageKind.MESSAGE_TYPE_WHO_GUESS:
+          {
+            const arr = trueWord.split('')
+            setWord(arr)
+            break
+          }
+
         default:
           break
       }
@@ -213,6 +337,24 @@ export const GamePage = () => {
     const data: Message = {
       kind: MessageKind.MESSAGE_TYPE_START_GAME,
       data: 'Game started'
+    }
+
+    send(JSON.stringify(data))
+  }
+
+  function startRoundHandler() {
+    const data: Message = {
+      kind: MessageKind.MESSAGE_TYPE_START_ROUND,
+      data: 'Round started'
+    }
+
+    send(JSON.stringify(data))
+  }
+
+  function endRoundHandler() {
+    const data: Message = {
+      kind: MessageKind.MESSAGE_TYPE_END_ROUND,
+      data: 'Round ended'
     }
 
     send(JSON.stringify(data))
@@ -232,7 +374,8 @@ export const GamePage = () => {
               {
                 isOwner && (<>
                   <Button disabled={gameStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={startGameHandler}>Start Game</Button>  
-                  <Button className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => setIsPainter(true)}>Start Round</Button>  
+                  <Button disabled={isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => startRoundHandler()}>Start Round</Button>  
+                  <Button disabled={!isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => endRoundHandler()}>End Round</Button>  
                 </>)
               }
               

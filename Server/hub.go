@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 
 	"encoding/json"
 )
@@ -76,7 +77,7 @@ type hub struct {
 }
 
 func getWords() []string {
-	return []string{"apple", "car", "laptop", "network", "pie", "architecture"}
+	return []string{"airplane", "car", "laptop", "network", "pie", "architecture", "apple"}
 }
 
 // Create a function that takes as arguments an integer called kind, a value of type any and that creates a json and unmarshal it and returns it
@@ -103,6 +104,9 @@ var h = hub{
 
 func gameLoop(room string) {
 	fmt.Println("gameLoop Start")
+	magicNumber := 0
+	gameFinished := false
+	roundStarted := false
 
 	game := h.games[room]
 
@@ -115,7 +119,7 @@ func gameLoop(room string) {
 		if m.kind == MESSAGE_TYPE_CHAT {
 			fmt.Println("gameLoop message chat message")
 
-			if game.isStarted {
+			if game.isStarted && roundStarted {
 				playerAct := h.rooms[room][m.senderConn]
 				var msgJson map[string]interface{}
 				err := json.Unmarshal(m.data, &msgJson)
@@ -125,8 +129,14 @@ func gameLoop(room string) {
 				}
 
 				if msgJson["data"] == game.words[game.round-1] {
-					playerAct.roundScore = append(playerAct.roundScore, 100)
-					playerAct.roundGuess = append(playerAct.roundGuess, true)
+					if playerAct.isPainter || playerAct.roundGuess[game.round-1] {
+						continue
+					}
+					playerAct.roundScore[game.round-1] = 100
+					playerAct.roundGuess[game.round-1] = true
+
+					h.rooms[room][m.senderConn] = playerAct
+
 					fmt.Println("gameLoop message chat message correct guess")
 					// create correct guess message
 					var msg, err = createJson(MESSAGE_TYPE_GUESS, playerAct.name+" guessed the word")
@@ -136,6 +146,48 @@ func gameLoop(room string) {
 					}
 					guessMessage := message{msg, room, MESSAGE_TYPE_GUESS, "server", "server", m.senderConn}
 					h.broadcast <- guessMessage
+
+					// create correct guess message
+					var msg2, err2 = createJson(MESSAGE_TYPE_WHO_GUESS, "The word was guessed by "+playerAct.name)
+					if err2 != nil {
+						fmt.Println(err2)
+						continue
+					}
+
+					whoGuess := privateMessage{msg2, room, MESSAGE_TYPE_WHO_GUESS, "server", "server", m.senderConn, m.senderId}
+
+					h.private <- whoGuess
+
+					// check if all players guessed
+					allGuessed := true
+
+					for _, player := range h.rooms[room] {
+						if !player.isPainter && !player.roundGuess[game.round-1] {
+							allGuessed = false
+						}
+					}
+
+					if allGuessed {
+						var msg, err = createJson(MESSAGE_TYPE_END_ROUND, "End of the round "+fmt.Sprint(game.round))
+						if err != nil {
+							fmt.Println(err)
+							continue
+						}
+						roundStarted = false
+						//reset player painter
+						for c, player := range h.rooms[room] {
+							player.isPainter = false
+							h.rooms[room][c] = player
+						}
+
+						for _, player := range h.rooms[room] {
+							fmt.Println(player.name, player.roundScore)
+						}
+
+						endRoundMessage := message{msg, room, MESSAGE_TYPE_END_ROUND, "server", "server", m.senderConn}
+						h.broadcast <- endRoundMessage
+					}
+
 					continue
 				}
 				h.broadcast <- m
@@ -157,11 +209,12 @@ func gameLoop(room string) {
 
 			fmt.Println("gameLoop message start game rounds: ", game.rounds)
 
-			for _, player := range h.rooms[room] {
-				player.roundScore = make([]int, game.rounds)
+			for c, player := range h.rooms[room] {
 				player.roundGuess = make([]bool, game.rounds)
+				player.roundScore = make([]int, game.rounds)
 				player.paintRounds = 0
 				player.isPainter = false
+				h.rooms[room][c] = player
 			}
 
 			h.broadcast <- m
@@ -211,11 +264,131 @@ func gameLoop(room string) {
 		}
 
 		if m.kind == MESSAGE_TYPE_START_ROUND {
+			if !game.isStarted || roundStarted {
+				continue
+			}
 
-			h.broadcast <- m
+			fmt.Println("gameLoop message start round")
+
+			game.round++
+			roundStarted = true
+
+			if game.round == game.rounds {
+				fmt.Println("gameLoop message start round end")
+				gameFinished = true
+			}
+
+			// Select painter
+			counter := 0
+
+			for _, player := range h.rooms[room] {
+				if player.paintRounds == magicNumber {
+					counter++
+				}
+			}
+			// generate a random number between 1 and counter
+			var randomNumber int
+			if counter != 1 {
+				randomNumber = rand.Intn(counter-1) + 1 // TODO change to random number
+			} else {
+				randomNumber = 1
+			}
+
+			counter2 := 0
+
+			for _, player := range h.rooms[room] {
+				if player.paintRounds == magicNumber {
+					counter2++
+				}
+			}
+
+			// select the painter with the random number in a loop
+			counter = 1
+
+			for c, player := range h.rooms[room] {
+				if player.paintRounds == magicNumber {
+					if counter == randomNumber {
+						player.isPainter = true
+						player.paintRounds++
+
+						h.rooms[room][c] = player
+
+						// create is painter message
+						if counter2 == 1 {
+							magicNumber++
+						}
+
+						var msg, err = createJson(MESSAGE_TYPE_IS_PAINTER, game.words[game.round-1])
+						if err != nil {
+							fmt.Println(err)
+							continue
+						}
+
+						priv := privateMessage{msg, m.room, MESSAGE_TYPE_IS_PAINTER, player.id, player.name, c, player.id}
+
+						fmt.Println("gameLoop message start round is painter: ", priv)
+
+						h.private <- priv
+
+						// create say painter message
+						var msg2, err2 = createJson(MESSAGE_TYPE_SAY_PAINTER, player.name+" is the painter")
+						if err2 != nil {
+							fmt.Println(err2)
+							continue
+						}
+						sayPainterMessage := message{msg2, room, MESSAGE_TYPE_SAY_PAINTER, "server", "server", m.senderConn}
+						h.broadcast <- sayPainterMessage
+					}
+					counter++
+				}
+			}
+			//create a map with a message and a word
+			var a = make(map[string]string)
+			a["word"] = game.words[game.round-1]
+			a["message"] = "Start of the round " + fmt.Sprint(game.round)
+
+			// create start round message
+			var msg, err = createJson(MESSAGE_TYPE_START_ROUND, a)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			startRoundMessage := message{msg, room, MESSAGE_TYPE_START_ROUND, "server", "server", m.senderConn}
+			h.broadcast <- startRoundMessage
+		}
+
+		if m.kind == MESSAGE_TYPE_END_ROUND {
+			var msg, err = createJson(MESSAGE_TYPE_END_ROUND, "End of the round "+fmt.Sprint(game.round))
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			roundStarted = false
+
+			// print scores
+			for _, player := range h.rooms[room] {
+				fmt.Println(player.name, player.roundScore)
+				fmt.Println(player.name, player.roundGuess)
+				fmt.Println(player.name, player.paintRounds)
+			}
+
+			//reset player painter
+			for c, player := range h.rooms[room] {
+				player.isPainter = false
+				h.rooms[room][c] = player
+			}
+
+			endRoundMessage := message{msg, room, MESSAGE_TYPE_END_ROUND, "server", "server", m.senderConn}
+			h.broadcast <- endRoundMessage
 		}
 
 		if isEnd {
+			break
+		}
+
+		if gameFinished {
+			fmt.Println("gameLoop message game finishedddddddddd")
 			break
 		}
 	}
