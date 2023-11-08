@@ -28,6 +28,12 @@ export const useWs = (url:string) => {
             ws.current.send(message);
         }
     }
+
+    const close = function () {
+        if (ws.current) {
+            ws.current.close();
+        }
+    }
   
-    return {isReady, val, send}
+    return {isReady, val, send, close}
 }

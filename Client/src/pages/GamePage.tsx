@@ -52,7 +52,7 @@ export const GamePage = () => {
   const [clearFlag, setClearFlag] = useState(false)
 
   const {roomId, username, userId} = useParams()
-  const {isReady, val, send} = useWs(`ws://${SERVER}/ws/${username}/${userId}/${roomId}/`)
+  const {isReady, val, send, close} = useWs(`ws://${SERVER}/ws/${username}/${userId}/${roomId}/`)
   const [trueWord, setTrueWord] = useState('')
 
   const [word, setWord] = useState(['','','','',''])
@@ -218,8 +218,25 @@ export const GamePage = () => {
 
           break
         case MessageKind.MESSAGE_TYPE_END_GAME:
-          console.log('end game')
-          break
+          {
+            console.log('end game')
+            const log = logRef.current
+            const item = document.createElement('div')
+            item.classList.add('flex')
+            item.innerHTML = `
+              <div class="bg-yellow-700 text-white p-2 rounded-lg max-w-xs">
+                Game ended
+              </div>
+            `
+            appendLog(log!, item)
+            enqueueSnackbar(`Game ended`, {variant: 'warning', autoHideDuration: 2000, anchorOrigin: {horizontal: 'left', vertical: 'top'}})
+            setIsPainter(false)
+            setIsRoundStarted(false)
+            setGameStarted(false)
+            setWord(['G','A','M','E',' ','E','N','D','E','D'])
+            close()
+            break
+          }
         case MessageKind.MESSAGE_TYPE_USER_JOIN:
           console.log('user join')
           messageTypeUserJoinHandler(data)

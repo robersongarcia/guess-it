@@ -1,5 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useUserStore } from '@/store';
+import { Navigate, useNavigate } from 'react-router-dom';
 
 const tags = Array.from({ length: 5 }).map(
   (_, i, a) => `v1.2.0-beta.${a.length - i}`
@@ -7,15 +9,30 @@ const tags = Array.from({ length: 5 }).map(
 
 
 export const LobbyPage = () => {
+
+  const userId = useUserStore(state => state.userId)
+  const username = useUserStore(state => state.username)
+  const logOut = useUserStore(state => state.logOut)
+  const navigate = useNavigate()
+
+  const createARoom = () => {
+    //create a room
+    const randomRoomId = Math.floor(Math.random() * 1000000)
+    //navigate to the room
+    navigate(`/game/room/${randomRoomId}/user/${username}/${userId}`)
+  }  
+
+  if(!userId || !username) return (<Navigate to="login" />)
+
   return (
     <div className="bg-slate-950 w-screen min-h-screen h-full px-40 pt-6" style={{ backgroundImage: 'linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5)), url("/background.jpg")', backgroundSize: 'cover', backgroundRepeat: 'no-repeat' }}>
       <div className="flex flex-col h-full">
         <div className="flex flex-row justify-between text-white text-xl font-medium pb-8">
-          <p>Roberson12  ID: 12348</p>
+          <p>{username}  ID: {userId}</p>
           <p className='text-3xl font-bold'>Guess It!</p>
           <div>
-            <Button className="bg-gray-700 hover:bg-gray-800 px-2 mx-2">Create Room</Button>         
-            <Button className="bg-red-600 hover:bg-red-700 px-2 mx-2">Logout</Button>
+            <Button className="bg-gray-700 hover:bg-gray-800 px-2 mx-2" onClick={createARoom}>Create Room</Button>         
+            <Button className="bg-red-600 hover:bg-red-700 px-2 mx-2" onClick={logOut}>Logout</Button>
           </div>
         </div>
         <div className="w-full">

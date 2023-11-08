@@ -12,9 +12,30 @@ import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
 
 import { useState } from "react"
+import { useUserStore } from "@/store"
+import { Navigate, useNavigate } from "react-router-dom"
 
 export const LoginPage = () => {
   const [isHovered, setIsHovered] = useState(false);
+  const [usernameInput, setUsernameInput] = useState('');
+  const setUsername = useUserStore((state) => state.setUsername)
+  const setUserId = useUserStore((state) => state.setUserId)
+  const navigate = useNavigate()
+
+
+  const setUser = () => {
+    //set user with zustand
+    setUsername(usernameInput)
+    setUserId(Math.floor(Math.random() * 1000000))
+    navigate('/lobby')
+    
+  }
+
+  const userId = useUserStore(state => state.userId)
+  const username = useUserStore(state => state.username)
+
+  if(userId && username) return (<Navigate to="lobby" />)
+
   return (
     <div className="h-screen flex">
           <div className="hidden lg:flex w-full lg:w-1/2 login_img_section h-full
@@ -52,10 +73,10 @@ export const LoginPage = () => {
                   <div className="grid w-full items-center gap-4">
                     <div className="flex flex-col space-y-1.5">
                       <Label htmlFor="username"></Label>
-                      <Input id="username" placeholder="Your creative alias" />
+                      <Input id="username" placeholder="Your creative alias" onChange={(e) => setUsernameInput(e.target.value)} value={usernameInput}/>
                     </div>
                     <div>
-                      <Button className="w-full">Start playing</Button>
+                      <Button className="w-full" onClick={setUser}>Start playing</Button>
                     </div>
                     <p className="text-center text-sm text-gray-400">
                       Be ready to draw, guess, and have a blast with your imagination!

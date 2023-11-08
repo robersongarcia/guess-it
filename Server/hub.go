@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"os"
 
 	"encoding/json"
 )
@@ -76,8 +77,47 @@ type hub struct {
 	unregister chan subscription
 }
 
-func getWords() []string {
-	return []string{"airplane", "car", "laptop", "network", "pie", "architecture", "apple"}
+func getWords(cant int) []string {
+	//open the words.json file and extract cant random words from it
+	file, err := os.ReadFile("./words.json")
+	if err != nil {
+		fmt.Println(err)
+		return []string{"airplane", "car", "laptop", "network", "pie", "architecture", "apple"}
+	}
+
+	var wordsMap map[string][]string
+
+	err = json.Unmarshal(file, &wordsMap)
+	if err != nil {
+		fmt.Println(err)
+		return []string{"airplane", "car", "laptop", "network", "pie", "architecture", "apple"}
+	}
+
+	words := wordsMap["words"]
+
+	var words2 []string
+	var usedIndices []int
+
+	for i := 0; i < cant; i++ {
+		randomNumber := rand.Intn(len(words))
+		if contains(usedIndices, randomNumber) {
+			i--
+		} else {
+			usedIndices = append(usedIndices, randomNumber)
+			words2 = append(words2, words[randomNumber])
+		}
+	}
+
+	return words2
+}
+
+func contains(s []int, e int) bool {
+	for _, a := range s {
+		if a == e {
+			return true
+		}
+	}
+	return false
 }
 
 // Create a function that takes as arguments an integer called kind, a value of type any and that creates a json and unmarshal it and returns it
@@ -205,7 +245,7 @@ func gameLoop(room string) {
 
 			game.rounds = len(h.rooms[room]) * 2 // TODO change to 3 aqui van las rondas
 
-			game.words = getWords() // TODO change to get words from database
+			game.words = getWords(game.rounds) // TODO change to get words from database
 
 			fmt.Println("gameLoop message start game rounds: ", game.rounds)
 
@@ -389,6 +429,15 @@ func gameLoop(room string) {
 
 		if gameFinished {
 			fmt.Println("gameLoop message game finishedddddddddd")
+			// create end game message
+			var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			endGameMessage := message{msg, room, MESSAGE_TYPE_END_GAME, "server", "server", m.senderConn}
+			h.broadcast <- endGameMessage
+
 			break
 		}
 	}
