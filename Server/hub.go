@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
-
-	"encoding/json"
+	"time"
 )
 
 type message struct {
@@ -180,7 +180,7 @@ func gameLoop(room string) {
 					fmt.Println("gameLoop message chat message correct guess")
 					// create correct guess message
 					var msg, err = createJson(MESSAGE_TYPE_GUESS, playerAct.name+" guessed the word")
-					if err != nil {
+					if err == nil {
 						fmt.Println(err)
 						continue
 					}
@@ -395,6 +395,31 @@ func gameLoop(room string) {
 			}
 			startRoundMessage := message{msg, room, MESSAGE_TYPE_START_ROUND, "server", "server", m.senderConn}
 			h.broadcast <- startRoundMessage
+
+			// Delay of 60 seconds between rounds
+			select {
+			case <-time.After(10 * time.Second):
+				var msg, err = createJson(MESSAGE_TYPE_END_ROUND, "End of the round "+fmt.Sprint(game.round)) //INDICAR QUE SE ACABO EL TIEMPO
+				if err != nil {
+					fmt.Println(err)
+					continue
+				}
+				roundStarted = false
+				//reset player painter
+				for c, player := range h.rooms[room] {
+					player.isPainter = false
+					h.rooms[room][c] = player
+				}
+
+				for _, player := range h.rooms[room] {
+					fmt.Println(player.name, player.roundScore)
+				}
+
+				endRoundMessage := message{msg, room, MESSAGE_TYPE_END_ROUND, "server", "server", m.senderConn}
+				h.broadcast <- endRoundMessage
+			case m = <-game.message:
+				print(time.Now().String())
+			}
 		}
 
 		if m.kind == MESSAGE_TYPE_END_ROUND {
