@@ -5,13 +5,14 @@ import (
 	"log"
 	"net/http"
 	"strings"
-
+	"os"
 	"github.com/gin-gonic/contrib/static"
 	"github.com/gin-gonic/gin"
 )
 
 func ginserver() {
-	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.New()
 
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
@@ -45,10 +46,17 @@ func ginserver() {
 
 		c.JSON(200, roomsList)
 	})
-
 	r.Use(static.Serve("/", static.LocalFile("../Client/dist", true)))
 
-	r.Run(":8081")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	if err := r.Run(":" + port); err != nil {
+        log.Panicf("error: %s", err)
+	}
+
+
 }
 
 func main() {
@@ -95,7 +103,7 @@ func main() {
 	// })
 	go ginserver()
 
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 
 }
 

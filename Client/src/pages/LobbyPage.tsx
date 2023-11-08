@@ -30,38 +30,38 @@ export const LobbyPage = () => {
     navigate(`/game/room/${nu}/user/${username}/${userId}`)  
   }
 
-  function getRooms(){
-      const config = {
-        method: 'get',
-        maxBodyLength: Infinity,
-        url: 'http://localhost:8081/wslist/',
-        headers: { }
-      };
+  // function getRooms(){
+  //     const config = {
+  //       method: 'get',
+  //       maxBodyLength: Infinity,
+  //       url: 'http://localhost:8081/wslist/',
+  //       headers: { }
+  //     };
 
-      axios.request(config)
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-        // setRooms(response.data)
-        for (const key of Object.keys(response.data)) {
-          setRooms([
-            ...rooms,
-            {
-              id: parseInt(key),
-              players: response.data[key]
-            }
-          ])
-        }
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-  }
+  //     axios.request(config)
+  //     .then((response) => {
+  //       console.log(JSON.stringify(response.data));
+  //       // setRooms(response.data)
+  //       for (const key of Object.keys(response.data)) {
+  //         setRooms([
+  //           ...rooms,
+  //           {
+  //             id: parseInt(key),
+  //             players: response.data[key]
+  //           }
+  //         ])
+  //       }
+  //     })
+  //     .catch((error) => {
+  //       console.log(error);
+  //     });
+  // }
 
-  useEffect(() => {
-    const intervalId = setInterval(getRooms, 2000); // Run getRooms every 2 seconds
+  // useEffect(() => {
+  //   const intervalId = setInterval(getRooms, 2000); // Run getRooms every 2 seconds
 
-    return () => clearInterval(intervalId); // Clean up on component unmount
-  }, []); // Empty dependency array means this effect runs once on mount and clean up on unmount
+  //   return () => clearInterval(intervalId); // Clean up on component unmount
+  // }, []); // Empty dependency array means this effect runs once on mount and clean up on unmount
 
 
   if(!userId || !username) return (<Navigate to="login" />)
