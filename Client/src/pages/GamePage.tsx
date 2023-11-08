@@ -31,7 +31,7 @@ const WordsPlaceholder = ({word}:wordsPlaceholderProps) => {
 
 interface Message { 
   kind: MessageKind,
-  data: unknown,
+  data: any,
   userName?: string,
   userId?: string,
 }

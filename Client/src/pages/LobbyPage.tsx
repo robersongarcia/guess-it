@@ -1,11 +1,9 @@
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useUserStore } from '@/store';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
-
-const tags = Array.from({ length: 5 }).map(
-  (_, i, a) => `v1.2.0-beta.${a.length - i}`
-)
+import axios from 'axios';
 
 
 export const LobbyPage = () => {
@@ -14,13 +12,51 @@ export const LobbyPage = () => {
   const username = useUserStore(state => state.username)
   const logOut = useUserStore(state => state.logOut)
   const navigate = useNavigate()
+  const [rooms, setRooms] = useState([{
+    id: 546565,
+    players: 2
+  }]); 
 
   const createARoom = () => {
     //create a room
     const randomRoomId = Math.floor(Math.random() * 1000000)
     //navigate to the room
-    navigate(`/game/room/${randomRoomId}/user/${username}/${userId}`)
+    navigate(`/game/room/${randomRoomId}/user/${username}/${userId}`)    
   }  
+
+  function getRooms(){
+      const config = {
+        method: 'get',
+        maxBodyLength: Infinity,
+        url: 'http://localhost:8081/wslist/',
+        headers: { }
+      };
+
+      axios.request(config)
+      .then((response) => {
+        console.log(JSON.stringify(response.data));
+        // setRooms(response.data)
+        for (const key of response.data) {
+          setRooms([
+            ...rooms,
+            {
+              id: key,
+              players: 2
+            }
+          ])
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+
+  useEffect(() => {
+    const intervalId = setInterval(getRooms, 2000); // Run getRooms every 2 seconds
+
+    return () => clearInterval(intervalId); // Clean up on component unmount
+  }, []); // Empty dependency array means this effect runs once on mount and clean up on unmount
+
 
   if(!userId || !username) return (<Navigate to="login" />)
 
@@ -43,11 +79,11 @@ export const LobbyPage = () => {
           <div style={{ border: '1px solid #ffffff', backgroundColor: 'rgba(255, 255, 255, 0.1)', borderRadius: '10px', display: 'inline-block', width: '80%' }}>
             <div>
               <ScrollArea>
-                  {tags.map((tag) => (
-                      <div className="w-full mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl m-5 hover:bg-slate-800 hover:text-white transition-all hover:cursor-pointer" key={tag}>
+                  {rooms.map((data) => (
+                      <div className="w-full mx-auto bg-white rounded-xl shadow-md overflow-hidden md:max-w-2xl m-5 hover:bg-slate-800 hover:text-white transition-all hover:cursor-pointer" key={data.id}>
                       <div className="py-4 px-8 flex flex-row items-center justify-between">
                           <div className="pr-4">
-                            <p className="text-xl font-bold">Room ID: 2</p>
+                            <p className="text-xl font-bold">Room ID: {data.id}</p>
                           </div>
                           <div>
                             <p className="text-xl">players: 2</p>
