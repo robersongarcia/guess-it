@@ -22,9 +22,9 @@ export const LobbyPage = () => {
     navigate(`/game/room/${randomRoomId}/user/${username}/${userId}`)
   }  
 
-  const help = (nu: number) => {
-    navigate(`/game/room/${nu}/user/${username}/${userId}`)  
-  }
+  // const help = (nu: number) => {
+  //   navigate(`/game/room/${nu}/user/${username}/${userId}`)  
+  // }
 
   // function getRooms(){
   //     const config = {
