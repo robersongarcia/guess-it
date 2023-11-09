@@ -11,7 +11,9 @@ interface Room{
   players: number
 }
 
-const SERVER = 'localhost:8080'
+// const SERVER = 'localhost:8080'
+const SERVER = 'guess-it.onrender.com'
+
 
 export const LobbyPage = () => {
 

@@ -12,7 +12,8 @@ interface wordsPlaceholderProps {
 
 // ws://localhost:8080/ws/roberson/571782/1
 
-const SERVER = 'localhost:8080'
+// const SERVER = 'localhost:8080'
+const SERVER = 'guess-it.onrender.com'
 
 const WordsPlaceholder = ({word}:wordsPlaceholderProps) => {
   
