@@ -1,11 +1,11 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"os"
-
-	"encoding/json"
+	"time"
 )
 
 type message struct {
@@ -75,6 +75,19 @@ type hub struct {
 
 	// Unregister requests from connections.
 	unregister chan subscription
+
+	// Register requests from the connections.
+	registerLobby chan subscription
+
+	// Unregister requests from connections.
+	unregisterLobby chan subscription
+
+	lobby map[*connection]bool
+
+	// message on the lobby
+	lobbyMessage chan message
+
+	lobbyCh chan message
 }
 
 func getWords(cant int) []string {
@@ -133,13 +146,51 @@ func createJson(kind int, value any) ([]byte, error) {
 }
 
 var h = hub{
-	broadcast:   make(chan message),
-	albroadcast: make(chan message),
-	private:     make(chan privateMessage),
-	register:    make(chan subscription),
-	unregister:  make(chan subscription),
-	rooms:       make(map[string]map[*connection]player),
-	games:       make(map[string]game),
+	broadcast:       make(chan message),
+	albroadcast:     make(chan message),
+	private:         make(chan privateMessage),
+	register:        make(chan subscription),
+	unregister:      make(chan subscription),
+	registerLobby:   make(chan subscription),
+	lobbyMessage:    make(chan message),
+	lobbyCh:         make(chan message),
+	unregisterLobby: make(chan subscription),
+	lobby:           make(map[*connection]bool),
+	rooms:           make(map[string]map[*connection]player),
+	games:           make(map[string]game),
+}
+
+func timer(room string, ticker *time.Ticker, timeCounter *int) {
+	fmt.Println("timer Start")
+	game := h.games[room]
+
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				return
+			case <-ticker.C:
+				*timeCounter++
+				fmt.Println("timer", *timeCounter)
+				if *timeCounter == 60 {
+					var msg, err = createJson(MESSAGE_TYPE_END_ROUND, "End of the round "+fmt.Sprint(game.round)) //INDICAR QUE SE ACABO EL TIEMPO
+					if err != nil {
+						fmt.Println(err)
+						return
+					}
+
+					endRoundMessage := message{msg, room, MESSAGE_TYPE_END_ROUND, "server", "server", nil}
+
+					h.games[room].message <- endRoundMessage
+					done <- true
+				}
+			}
+		}
+	}()
+
+	fmt.Println("timer End")
 }
 
 func gameLoop(room string) {
@@ -147,6 +198,8 @@ func gameLoop(room string) {
 	magicNumber := 0
 	gameFinished := false
 	roundStarted := false
+	ticker := time.NewTicker(1 * time.Second)
+	timeCounter := 0
 
 	game := h.games[room]
 
@@ -172,7 +225,7 @@ func gameLoop(room string) {
 					if playerAct.isPainter || playerAct.roundGuess[game.round-1] {
 						continue
 					}
-					playerAct.roundScore[game.round-1] = 100
+					playerAct.roundScore[game.round-1] = 60 - timeCounter
 					playerAct.roundGuess[game.round-1] = true
 
 					h.rooms[room][m.senderConn] = playerAct
@@ -215,6 +268,10 @@ func gameLoop(room string) {
 						}
 						roundStarted = false
 						//reset player painter
+						ticker.Stop()
+
+						timeCounter = 0
+
 						for c, player := range h.rooms[room] {
 							player.isPainter = false
 							h.rooms[room][c] = player
@@ -395,6 +452,12 @@ func gameLoop(room string) {
 			}
 			startRoundMessage := message{msg, room, MESSAGE_TYPE_START_ROUND, "server", "server", m.senderConn}
 			h.broadcast <- startRoundMessage
+
+			// start timer
+			timeCounter = 0
+			ticker.Reset(1 * time.Second)
+
+			go timer(room, ticker, &timeCounter)
 		}
 
 		if m.kind == MESSAGE_TYPE_END_ROUND {
@@ -405,6 +468,10 @@ func gameLoop(room string) {
 			}
 
 			roundStarted = false
+
+			ticker.Stop()
+
+			timeCounter = 0
 
 			// print scores
 			for _, player := range h.rooms[room] {
@@ -423,11 +490,32 @@ func gameLoop(room string) {
 			h.broadcast <- endRoundMessage
 		}
 
+		if m.kind == MESSAGE_TYPE_SHOW_POINTS {
+			fmt.Println("gameLoop message show points")
+
+			//Get the Points for every player
+			var points = make(map[string]interface{})
+			for _, player := range h.rooms[room] {
+				points[player.name] = player.roundScore
+			}
+
+			// create show points message
+			var msg, err = createJson(MESSAGE_TYPE_SHOW_POINTS, points)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			showPointsMessage := privateMessage{msg, room, MESSAGE_TYPE_SHOW_POINTS, "server", "server", m.senderConn, m.senderId}
+			h.private <- showPointsMessage
+		}
+
 		if isEnd {
+			delete(h.rooms, room)
+			delete(h.games, room)
 			break
 		}
 
-		if gameFinished {
+		if gameFinished && !roundStarted {
 			fmt.Println("gameLoop message game finishedddddddddd")
 			// create end game message
 			var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
@@ -438,13 +526,55 @@ func gameLoop(room string) {
 			endGameMessage := message{msg, room, MESSAGE_TYPE_END_GAME, "server", "server", m.senderConn}
 			h.broadcast <- endGameMessage
 
+			delete(h.rooms, room)
+			delete(h.games, room)
+
 			break
 		}
 	}
 	fmt.Println("gameLoop End")
 }
 
+func lobbyHandler() {
+
+	for {
+
+		m := <-h.lobbyCh
+
+		if m.kind == LOBBY_CHANGE {
+			fmt.Println("gameLoop message lobby create room")
+
+			// send in a message the room id and players number of all rooms
+			var resp = make(map[string]interface{})
+			var rooms = make(map[string]interface{})
+			for room, connections := range h.rooms {
+				var players = 0
+				for _, player := range connections {
+					players++
+					fmt.Println(player)
+				}
+				rooms[room] = players
+			}
+
+			resp["rooms"] = rooms
+
+			var msg, err = createJson(LOBBY_CHANGE, resp)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+
+			lobbyM := message{msg, "", LOBBY_CHANGE, "server", "server", m.senderConn}
+
+			h.lobbyMessage <- lobbyM
+		}
+	}
+}
+
 func (h *hub) run() {
+
+	go lobbyHandler()
+
 	for {
 		select {
 		case s := <-h.register:
@@ -466,6 +596,8 @@ func (h *hub) run() {
 			}
 			joinMessage := message{msg, s.room, MESSAGE_TYPE_USER_JOIN, s.userId, s.userName, s.conn}
 			h.games[s.room].message <- joinMessage
+			lobbyM := message{msg, s.room, LOBBY_CHANGE, s.userId, s.userName, s.conn}
+			h.lobbyCh <- lobbyM
 
 		case s := <-h.unregister:
 			connections := h.rooms[s.room]
@@ -483,9 +615,19 @@ func (h *hub) run() {
 					delete(connections, s.conn)
 					close(s.conn.send)
 					if len(connections) == 0 {
-						delete(h.rooms, s.room)
-						delete(h.games, s.room)
+						//create end Message
+						var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
+						if err != nil {
+							fmt.Println(err)
+							continue
+						}
+						endGameMessage := message{msg, s.room, MESSAGE_TYPE_END_GAME, "server", "server", s.conn}
+
+						h.games[s.room].message <- endGameMessage
 					}
+
+					lobbyM := message{msg, s.room, LOBBY_CHANGE, s.userId, s.userName, s.conn}
+					h.lobbyCh <- lobbyM
 				}
 			}
 
@@ -536,6 +678,29 @@ func (h *hub) run() {
 							delete(h.games, m.room)
 						}
 					}
+				}
+			}
+
+		case m := <-h.registerLobby:
+			h.lobby[m.conn] = true
+			fmt.Println("registerLobby")
+			lobbyM := message{[]byte(""), "", LOBBY_CHANGE, "server", "server", nil}
+			h.lobbyCh <- lobbyM
+
+		case m := <-h.unregisterLobby:
+			if _, ok := h.lobby[m.conn]; ok {
+				fmt.Println("unregisterLobby")
+				delete(h.lobby, m.conn)
+				close(m.conn.send)
+			}
+
+		case m := <-h.lobbyMessage:
+			for c := range h.lobby {
+				select {
+				case c.send <- m.data:
+				default:
+					close(c.send)
+					delete(h.lobby, c)
 				}
 			}
 		}

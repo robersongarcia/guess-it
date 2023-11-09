@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import CanvasPaint, { Point } from '../components/canvasComp';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useWs } from '@/hooks/useWs';
 import { useSnackbar } from 'notistack';
 import { MessageKind } from '@/constants';
@@ -36,10 +36,16 @@ interface Message {
   userId?: string,
 }
 
+interface Pointer {
+  name: string,
+  points: number[],
+}
+
 export const GamePage = () => {
 
   //get params from react router dom
   //generate a random number
+  const navigate = useNavigate()
   const [isPainter, setIsPainter] = useState(false)
   const [isOwner, setIsOwner] = useState(false)
   const [gameStarted, setGameStarted] = useState(false)
@@ -56,6 +62,8 @@ export const GamePage = () => {
   const [trueWord, setTrueWord] = useState('')
 
   const [word, setWord] = useState(['','','','',''])
+  const [openModal, setOpenModal] = useState(false)
+  const [points, setPoints] = useState<Pointer[]>([])
 
   useEffect(() => {
     if (isReady) {
@@ -235,6 +243,12 @@ export const GamePage = () => {
             setGameStarted(false)
             setWord(['G','A','M','E',' ','E','N','D','E','D'])
             close()
+
+            //after 5 seconds navigate to lobby
+            setTimeout(() => {
+              navigate('/lobby')
+            }, 10000)
+
             break
           }
         case MessageKind.MESSAGE_TYPE_USER_JOIN:
@@ -342,6 +356,22 @@ export const GamePage = () => {
             break
           }
 
+        case MessageKind.MESSAGE_TYPE_SHOW_POINTS:
+          {
+            const res = data.data
+
+            const pointes: Pointer[] = []
+
+            for (const key of Object.keys(res)) {
+              pointes.push({name: key, points: res[key]})
+            }
+
+            setPoints([...pointes])
+
+            setOpenModal(true)
+            break
+          }
+
         default:
           break
       }
@@ -354,6 +384,15 @@ export const GamePage = () => {
     const data: Message = {
       kind: MessageKind.MESSAGE_TYPE_START_GAME,
       data: 'Game started'
+    }
+
+    send(JSON.stringify(data))
+  }
+
+  function onShowPoints () {
+    const data: Message = {
+      kind: MessageKind.MESSAGE_TYPE_SHOW_POINTS,
+      data: 'Show points'
     }
 
     send(JSON.stringify(data))
@@ -379,6 +418,55 @@ export const GamePage = () => {
 
   return (
     <div className="w-screen h-screen flex flex-row">
+
+        {/* Create a simple modal with Radix ui */}
+        {openModal ? (
+        <>
+          <div
+            className="justify-center items-center flex overflow-x-hidden overflow-y-auto fixed inset-0 z-50 outline-none focus:outline-none"
+          >
+            <div className="relative w-auto my-6 mx-auto max-w-3xl">
+              {/*content*/}
+              <div className="border-0 rounded-lg shadow-lg relative flex flex-col w-full bg-white outline-none focus:outline-none">
+                {/*header*/}
+                <div className="flex items-start justify-between p-5 border-b border-solid border-blueGray-200 rounded-t">
+                  <h3 className="text-3xl font-semibold">
+                    Points of the players
+                  </h3>
+                  <button
+                    className="p-1 ml-auto bg-transparent border-0 text-black opacity-5 float-right text-3xl leading-none font-semibold outline-none focus:outline-none"
+                    onClick={() => setOpenModal(false)}
+                  >
+                    <span className="bg-transparent text-black opacity-5 h-6 w-6 text-2xl block outline-none focus:outline-none">
+                      x 
+                    </span>
+                  </button>
+                </div>
+                {/*body*/}
+                <div className="relative p-6 flex-auto">
+                    {
+                      points.map((point, i) => (
+                        <p className="my-4 text-black text-2xl leading-relaxed" key={i}>{point.name}: {point.points.reduce((x, y) => x+y)}</p>
+                      ))
+                    }
+                </div>
+                {/*footer*/}
+                <div className="flex items-center justify-end p-6 border-t border-solid border-blueGray-200 rounded-b">
+                  <button
+                    className="text-red-500 background-transparent font-bold uppercase px-6 py-2 text-sm outline-none focus:outline-none mr-1 mb-1 ease-linear transition-all duration-150"
+                    type="button"
+                    onClick={() => setOpenModal(false)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="opacity-25 fixed inset-0 z-40 bg-black"></div>
+        </>
+      ) : null}
+
         <div className="bg-white w-4/6 h-full">
           <div className='h-16 w-4/6 absolute'>
             <WordsPlaceholder word={word}/>
@@ -394,8 +482,9 @@ export const GamePage = () => {
                   <Button disabled={isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => startRoundHandler()}>Start Round</Button>  
                   <Button disabled={!isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => endRoundHandler()}>End Round</Button>  
                 </>)
+                
               }
-              
+              <Button className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={onShowPoints}>Show Points</Button>              
             </div>
             {/* Chat part */}
             <div className="bg-slate-800 h-[90%] flex flex-col w-full mx-auto">
