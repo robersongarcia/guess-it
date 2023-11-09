@@ -446,7 +446,7 @@ export const GamePage = () => {
                 <div className="relative p-6 flex-auto">
                     {
                       points.map((point, i) => (
-                        <p className="my-4 text-black text-2xl leading-relaxed" key={i}>{point.name}: {point.points.reduce((x, y) => x+y)}</p>
+                        <p className="my-4 text-black text-2xl leading-relaxed" key={i}>{point.name}: {point.points.reduce((x, y) => x + y, 0)}</p>
                       ))
                     }
                 </div>
