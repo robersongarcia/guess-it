@@ -22,7 +22,7 @@ export const LobbyPage = () => {
   const [rooms, setRooms] = useState<Room[]>([
     ]); 
   
-  const {isReady, val, send} = useWs(`ws://${SERVER}/lobby/`)
+  const {isReady, val, send} = useWs(`wss://${SERVER}/lobby/`)
 
   useEffect(() => {
     if (isReady) {

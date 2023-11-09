@@ -58,7 +58,7 @@ export const GamePage = () => {
   const [clearFlag, setClearFlag] = useState(false)
 
   const {roomId, username, userId} = useParams()
-  const {isReady, val, send, close} = useWs(`ws://${SERVER}/ws/${username}/${userId}/${roomId}/`)
+  const {isReady, val, send, close} = useWs(`wss://${SERVER}/ws/${username}/${userId}/${roomId}/`)
   const [trueWord, setTrueWord] = useState('')
 
   const [word, setWord] = useState(['','','','',''])
