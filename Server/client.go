@@ -40,6 +40,10 @@ const (
 	MESSAGE_TYPE_SAY_PAINTER
 	MESSAGE_TYPE_END_ROUND
 	MESSAGE_TYPE_WHO_GUESS
+	MESSAGE_TYPE_SHOW_POINTS
+
+	//Lobby message types
+	LOBBY_CHANGE
 )
 
 var upgrader = websocket.Upgrader{
@@ -153,11 +157,26 @@ func serveWs(w http.ResponseWriter, r *http.Request, roomId string, userId strin
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err.Error())
+		fmt.Println(err.Error())
 		return
 	}
 	c := &connection{send: make(chan []byte, 256), ws: ws}
 	s := subscription{c, roomId, userId, userName}
 	h.register <- s
+	go s.writePump()
+	go s.readPump()
+}
+
+func serveLobby(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("serveLobby")
+	ws, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println(err.Error())
+		return
+	}
+	c := &connection{send: make(chan []byte, 256), ws: ws}
+	s := subscription{c, "", "", ""}
+	h.registerLobby <- s
 	go s.writePump()
 	go s.readPump()
 }

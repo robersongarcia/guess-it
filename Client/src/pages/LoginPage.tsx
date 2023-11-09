@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button"
 
 import { useState } from "react"
 import { useUserStore } from "@/store"
-import { Navigate, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 export const LoginPage = () => {
   const [isHovered, setIsHovered] = useState(false);
@@ -30,11 +30,6 @@ export const LoginPage = () => {
     navigate('/lobby')
     
   }
-
-  const userId = useUserStore(state => state.userId)
-  const username = useUserStore(state => state.username)
-
-  if(userId && username) return (<Navigate to="lobby" />)
 
   return (
     <div className="h-screen flex">
