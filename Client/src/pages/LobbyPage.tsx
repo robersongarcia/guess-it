@@ -5,14 +5,12 @@ import { useUserStore } from '@/store';
 import {  useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 // import axios from 'axios';
+import { PROTOCOL, SERVER } from '../constants';
 
 interface Room{
   id: number,
   players: number
 }
-
-// const SERVER = 'localhost:8080'
-const SERVER = 'guess-it.onrender.com'
 
 
 export const LobbyPage = () => {
@@ -24,7 +22,7 @@ export const LobbyPage = () => {
   const [rooms, setRooms] = useState<Room[]>([
     ]); 
   
-  const {isReady, val, send} = useWs(`wss://${SERVER}/lobby/`)
+  const {isReady, val, send} = useWs(`${PROTOCOL}${SERVER}/lobby/`)
 
   useEffect(() => {
     if (isReady) {

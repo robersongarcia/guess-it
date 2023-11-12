@@ -3,7 +3,7 @@ import CanvasPaint, { Point } from '../components/canvasComp';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useWs } from '@/hooks/useWs';
 import { useSnackbar } from 'notistack';
-import { MessageKind } from '@/constants';
+import { MessageKind, PROTOCOL } from '@/constants';
 import { Button } from '@/components/ui/button';
 
 interface wordsPlaceholderProps {
@@ -12,8 +12,7 @@ interface wordsPlaceholderProps {
 
 // ws://localhost:8080/ws/roberson/571782/1
 
-// const SERVER = 'localhost:8080'
-const SERVER = 'guess-it.onrender.com'
+import { SERVER } from '@/constants';
 
 const WordsPlaceholder = ({word}:wordsPlaceholderProps) => {
   
@@ -59,7 +58,7 @@ export const GamePage = () => {
   const [clearFlag, setClearFlag] = useState(false)
 
   const {roomId, username, userId} = useParams()
-  const {isReady, val, send, close} = useWs(`wss://${SERVER}/ws/${username}/${userId}/${roomId}/`)
+  const {isReady, val, send, close} = useWs(`${PROTOCOL}${SERVER}/ws/${username}/${userId}/${roomId}/`)
   const [trueWord, setTrueWord] = useState('')
 
   const [word, setWord] = useState(['','','','',''])
@@ -221,6 +220,7 @@ export const GamePage = () => {
         case MessageKind.MESSAGE_TYPE_CHAT:
           messageTypeChatHandler(data)
           break
+
         case MessageKind.MESSAGE_TYPE_START_GAME:
           console.log('start game')
           startMessageHandler()

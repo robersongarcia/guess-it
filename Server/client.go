@@ -156,15 +156,22 @@ func serveWs(w http.ResponseWriter, r *http.Request, roomId string, userId strin
 	fmt.Println("serveWs end")
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		fmt.Println("serveWs error")
 		log.Println(err.Error())
 		fmt.Println(err.Error())
 		return
 	}
+	fmt.Println("serveWs after upgrade")
+	fmt.Println(ws.RemoteAddr())
+	fmt.Println("serveWs after upgrade end")
 	c := &connection{send: make(chan []byte, 256), ws: ws}
 	s := subscription{c, roomId, userId, userName}
 	h.register <- s
+	fmt.Println("serveWs after register")
 	go s.writePump()
+	fmt.Println("serveWs after writePump")
 	go s.readPump()
+	fmt.Println("serveWs after readPump")
 }
 
 func serveLobby(w http.ResponseWriter, r *http.Request) {

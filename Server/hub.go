@@ -358,6 +358,18 @@ func gameLoop(room string) {
 		if m.kind == MESSAGE_TYPE_USER_LEAVE {
 			fmt.Println("gameLoop message user leave")
 			h.broadcast <- m
+
+			if len(h.rooms[room]) == 0 {
+				isEnd = true
+			}
+
+			var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			endGameMessage := message{msg, room, MESSAGE_TYPE_END_GAME, "server", "server", m.senderConn}
+			h.broadcast <- endGameMessage
 		}
 
 		if m.kind == MESSAGE_TYPE_START_ROUND {
@@ -510,6 +522,9 @@ func gameLoop(room string) {
 		}
 
 		if isEnd {
+			fmt.Println("gameLoop message end game")
+			// close channel
+			close(game.message)
 			delete(h.rooms, room)
 			delete(h.games, room)
 			break
@@ -580,7 +595,7 @@ func (h *hub) run() {
 		case s := <-h.register:
 			connections := h.rooms[s.room]
 			isOwner := false
-			if connections == nil {
+			if len(connections) == 0 {
 				connections = make(map[*connection]player)
 				h.rooms[s.room] = connections
 				h.games[s.room] = game{words: make([]string, 0), rounds: 0, round: 0, isStarted: false, message: make(chan message)}
@@ -609,22 +624,13 @@ func (h *hub) run() {
 						fmt.Println(err)
 						continue
 					}
+					delete(connections, s.conn)
+					h.rooms[s.room] = connections
+					close(s.conn.send)
+					s.conn.ws.Close()
+
 					leaveMessage := message{msg, s.room, MESSAGE_TYPE_USER_LEAVE, s.userId, s.userName, s.conn}
 					h.games[s.room].message <- leaveMessage
-
-					delete(connections, s.conn)
-					close(s.conn.send)
-					if len(connections) == 0 {
-						//create end Message
-						var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
-						if err != nil {
-							fmt.Println(err)
-							continue
-						}
-						endGameMessage := message{msg, s.room, MESSAGE_TYPE_END_GAME, "server", "server", s.conn}
-
-						h.games[s.room].message <- endGameMessage
-					}
 
 					lobbyM := message{msg, s.room, LOBBY_CHANGE, s.userId, s.userName, s.conn}
 					h.lobbyCh <- lobbyM
