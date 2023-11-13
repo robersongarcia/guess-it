@@ -138,7 +138,9 @@ function CanvasPaint({send, otherStrokes, clearFlag, isPainter}:CanvasProps) {
         if (newStroke) {
             setStrokes([...strokes, [p]]);
         } else {
-            setStrokes(strokes.slice(0, strokes.length - 1).concat([strokes[strokes.length - 1].concat([p])]));
+            if (strokes.length > 0) {
+                setStrokes(strokes.slice(0, strokes.length - 1).concat([strokes[strokes.length - 1].concat([p])]));
+              }
         }
         send(JSON.stringify({
             kind: MessageKind.MESSAGE_TYPE_DRAW,
@@ -201,7 +203,11 @@ function CanvasPaint({send, otherStrokes, clearFlag, isPainter}:CanvasProps) {
 
         if (full) {
             setStrokes([]);
-            send(JSON.stringify({ kind: MessageKind.MESSAGE_TYPE_CLEAR }));
+            if(isPainter) {
+                send(JSON.stringify({
+                    kind: MessageKind.MESSAGE_TYPE_CLEAR
+                }));
+            }
         }
     }
   
