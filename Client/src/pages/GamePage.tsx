@@ -229,12 +229,33 @@ export const GamePage = () => {
         case MessageKind.MESSAGE_TYPE_END_GAME:
           {
             console.log('end game')
+            const res = data.data
+
+            const pointes: Pointer[] = []
+
+            for (const key of Object.keys(res)) {
+              pointes.push({name: key, points: res[key]})
+            }
+
+            //order the pointes
+            pointes.sort((a, b) => {
+              const aPoints = a.points.reduce((x, y) => x + y, 0)
+              const bPoints = b.points.reduce((x, y) => x + y, 0)
+
+              return bPoints - aPoints
+            })
+            
+
+            setPoints([...pointes])
+
+            setOpenModal(true)
+
             const log = logRef.current
             const item = document.createElement('div')
             item.classList.add('flex')
             item.innerHTML = `
               <div class="bg-yellow-700 text-white p-2 rounded-lg max-w-xs">
-                Game ended
+                Game ended, The Winner is: ${pointes[0]?.name}
               </div>
             `
             appendLog(log!, item)
@@ -367,6 +388,15 @@ export const GamePage = () => {
               pointes.push({name: key, points: res[key]})
             }
 
+            //order the pointes
+            pointes.sort((a, b) => {
+              const aPoints = a.points.reduce((x, y) => x + y, 0)
+              const bPoints = b.points.reduce((x, y) => x + y, 0)
+
+              return bPoints - aPoints
+            })
+            
+
             setPoints([...pointes])
 
             setOpenModal(true)
@@ -475,17 +505,17 @@ export const GamePage = () => {
           <CanvasPaint send={send} otherStrokes={otherStrokes} clearFlag={clearFlag} isPainter={isPainter}/>
         </div>
         <div className="bg-blue-500 w-2/6">
-            <div className="w-full h-[10%] bg-slate-900 text-white flex flex-row items-center px-8">
-              <p className="text-xl pr-3">Room ID: {roomId}</p>
+            <div className="w-full h-[10%] bg-slate-900 text-white flex flex-row items-center px-4">
+              <p className="text-base pr-1">Room ID: {roomId}</p>
               {
                 isOwner && (<>
-                  <Button disabled={gameStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={startGameHandler}>Start Game</Button>  
-                  <Button disabled={isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => startRoundHandler()}>Start Round</Button>  
-                  <Button disabled={!isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={() => endRoundHandler()}>End Round</Button>  
+                  <Button disabled={gameStarted} className="bg-slate-700 hover:bg-slate-950 px-1 mx-2 text-xs" onClick={startGameHandler}>Start Game</Button>  
+                  <Button disabled={isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-1 mx-2 text-xs" onClick={() => startRoundHandler()}>Start Round</Button>  
+                  <Button disabled={!isRoundStarted} className="bg-slate-700 hover:bg-slate-950 px-1 mx-2 text-xs" onClick={() => endRoundHandler()}>End Round</Button>  
                 </>)
                 
               }
-              <Button className="bg-slate-700 hover:bg-slate-950 px-2 mx-2" onClick={onShowPoints}>Show Points</Button>              
+              <Button className="bg-slate-700 hover:bg-slate-950 px-1 mx-2 text-xs" onClick={onShowPoints}>Show Points</Button>              
             </div>
             {/* Chat part */}
             <div className="bg-slate-800 h-[90%] flex flex-col w-full mx-auto">

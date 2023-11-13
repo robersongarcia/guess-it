@@ -532,13 +532,20 @@ func gameLoop(room string) {
 
 		if gameFinished && !roundStarted {
 			fmt.Println("gameLoop message game finishedddddddddd")
+
+			var points = make(map[string]interface{})
+			for _, player := range h.rooms[room] {
+				points[player.name] = player.roundScore
+			}
+
 			// create end game message
-			var msg, err = createJson(MESSAGE_TYPE_END_GAME, "End of the game")
-			if err != nil {
-				fmt.Println(err)
+			var msg2, err2 = createJson(MESSAGE_TYPE_END_GAME, points)
+			if err2 != nil {
+				fmt.Println(err2)
 				continue
 			}
-			endGameMessage := message{msg, room, MESSAGE_TYPE_END_GAME, "server", "server", m.senderConn}
+
+			endGameMessage := message{msg2, room, MESSAGE_TYPE_END_GAME, "server", "server", m.senderConn}
 			h.broadcast <- endGameMessage
 
 			delete(h.rooms, room)

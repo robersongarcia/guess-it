@@ -16,8 +16,8 @@ export enum MessageKind {
       MESSAGE_TYPE_SHOW_POINTS
   }
   
-export const SERVER = 'localhost:8080'
-//export const SERVER = 'guess-it.onrender.com'
+// export const SERVER = 'localhost:8080'
+export const SERVER = 'guess-it.onrender.com'
 
-export const PROTOCOL = 'ws://'
-//export const PROTOCOL = 'wss://'
+// export const PROTOCOL = 'ws://'
+export const PROTOCOL = 'wss://'

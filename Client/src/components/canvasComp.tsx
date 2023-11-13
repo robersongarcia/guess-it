@@ -196,6 +196,9 @@ function CanvasPaint({send, otherStrokes, clearFlag, isPainter}:CanvasProps) {
             }
         }
 
+        setLineColor("#000000");
+        setLineWidth(5);
+
         if (full) {
             setStrokes([]);
             send(JSON.stringify({ kind: MessageKind.MESSAGE_TYPE_CLEAR }));
