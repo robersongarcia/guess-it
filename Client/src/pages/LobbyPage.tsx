@@ -26,13 +26,13 @@ export const LobbyPage = () => {
 
   useEffect(() => {
     if (isReady) {
-      console.log('ready')
+      // console.log('ready')
     }
   }, [isReady, send])
 
   useEffect(() => {
     if (val) {
-      console.log(val)
+      // console.log(val)
       const respData = JSON.parse(val)
 
       const {data} = respData

@@ -4,7 +4,7 @@ import {useState, useEffect, useRef } from 'react';
 export const useWs = (url:string) => {
     const [isReady, setIsReady] = useState(false)
     const [val, setVal] = useState<string | null>(null)
-    // console.log(url)
+    // // console.log(url)
   
     const ws = useRef<WebSocket | null>(null)
   

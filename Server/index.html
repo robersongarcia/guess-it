@@ -93,7 +93,7 @@
                 const params = window.location.href.split("/");
                 const roomId = params[params.length - 1];
                 conn = new WebSocket("wss://" + document.location.host + "/ws/" + roomId + "/" + randomId + "/" + userName);
-                console.log("wss://" + document.location.host + "/ws/" + roomId + "/" + randomId + "/" + userName)
+                // console.log("wss://" + document.location.host + "/ws/" + roomId + "/" + randomId + "/" + userName)
                 conn.onclose = function (evt) {
                     let item = document.createElement("div");
                     item.innerHTML = "<b>Connection closed.</b>";

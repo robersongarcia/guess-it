@@ -67,7 +67,7 @@ export const GamePage = () => {
 
   useEffect(() => {
     if (isReady) {
-      console.log('ready')
+      // console.log('ready')
     }
   }, [isReady, send])
 
@@ -103,8 +103,8 @@ export const GamePage = () => {
   }
 
   function messageTypeDrawHandler(data: Message) {
-    console.log('draw')
-    console.log(data.data)
+    // console.log('draw')
+    // console.log(data.data)
     const {finish, points} = data.data as {finish: boolean, points: Point[]}
 
     if (finish) {
@@ -116,7 +116,9 @@ export const GamePage = () => {
     } else {
       setOtherStrokes((prev) => {
         const newStrokes = [...prev]
-        newStrokes[newStrokes.length - 1] = newStrokes[newStrokes.length - 1].concat(points)
+        if (newStrokes.length > 0) {
+          newStrokes[newStrokes.length - 1] = newStrokes[newStrokes.length - 1].concat(points)
+        }
         return newStrokes
       })
     }
@@ -214,7 +216,7 @@ export const GamePage = () => {
     function messageHandler() {
       if (!val) return
       const data = JSON.parse(val) as Message
-      console.log(val)
+      // console.log(val)
 
       switch (data.kind) {
         case MessageKind.MESSAGE_TYPE_CHAT:
@@ -222,13 +224,13 @@ export const GamePage = () => {
           break
 
         case MessageKind.MESSAGE_TYPE_START_GAME:
-          console.log('start game')
+          // console.log('start game')
           startMessageHandler()
 
           break
         case MessageKind.MESSAGE_TYPE_END_GAME:
           {
-            console.log('end game')
+            // console.log('end game')
             const res = data.data
 
             const pointes: Pointer[] = []
@@ -274,11 +276,11 @@ export const GamePage = () => {
             break
           }
         case MessageKind.MESSAGE_TYPE_USER_JOIN:
-          console.log('user join')
+          // console.log('user join')
           messageTypeUserJoinHandler(data)
           break
         case MessageKind.MESSAGE_TYPE_USER_LEAVE:
-          console.log('user leave')
+          // console.log('user leave')
           userLeaveMessageHandler(data)
           break
         case MessageKind.MESSAGE_TYPE_DRAW:
@@ -287,7 +289,7 @@ export const GamePage = () => {
           break
         case MessageKind.MESSAGE_TYPE_GUESS:
           {
-            console.log('Type guess')
+            // console.log('Type guess')
             const log = logRef.current
             const item = document.createElement('div')
             item.classList.add('flex')
@@ -302,7 +304,7 @@ export const GamePage = () => {
           }
 
         case MessageKind.MESSAGE_TYPE_CLEAR:
-          console.log('clear')
+          // console.log('clear')
           setClearFlag(true)
           setOtherStrokes([])
           setTimeout(() => {
@@ -311,14 +313,14 @@ export const GamePage = () => {
           break
 
         case MessageKind.MESSAGE_TYPE_IS_OWNER:
-          console.log('is owner')
+          // console.log('is owner')
           setIsOwner(true)
           break
 
         case MessageKind.MESSAGE_TYPE_IS_PAINTER:
         {          
-          console.log('is painter')
-          console.log(data)
+          // console.log('is painter')
+          // console.log(data)
           setIsPainter(true)
           const str = data.data as string
           const arr = str.split('')          
@@ -338,8 +340,8 @@ export const GamePage = () => {
 
         case MessageKind.MESSAGE_TYPE_START_ROUND:{
         
-          console.log('start round')
-          console.log(data)
+          // console.log('start round')
+          // console.log(data)
           
           const {message, word} = data.data
           startRoundMessageHandler(message, word)
@@ -347,13 +349,13 @@ export const GamePage = () => {
           break
         }
         case MessageKind.MESSAGE_TYPE_SAY_PAINTER:
-          console.log('say painter')
+          // console.log('say painter')
           sayPainterHandler(data)
           break
 
         case MessageKind.MESSAGE_TYPE_END_ROUND:
           {
-            console.log('end round')
+            // console.log('end round')
             setIsRoundStarted(false)
             setClearFlag(true)
             setOtherStrokes([])

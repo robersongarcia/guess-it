@@ -107,9 +107,9 @@ func (s subscription) readPump() {
 
 		m := message{msg, s.room, int(msgJson["kind"].(float64)), s.userId, s.userName, s.conn}
 
-		fmt.Print("message: ")
-		fmt.Println(m)
-		fmt.Println("message end")
+		// fmt.Print("message: ")
+		// fmt.Println(m)
+		// fmt.Println("message end")
 
 		h.games[s.room].message <- m
 	}
