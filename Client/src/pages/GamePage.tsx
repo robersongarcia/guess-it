@@ -216,7 +216,6 @@ export const GamePage = () => {
     function messageHandler() {
       if (!val) return
       const data = JSON.parse(val) as Message
-      // console.log(val)
 
       switch (data.kind) {
         case MessageKind.MESSAGE_TYPE_CHAT:
